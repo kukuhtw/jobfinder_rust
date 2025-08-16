@@ -1,0 +1,27 @@
+[package]
+name = "job_finder"
+version = "0.1.0"
+edition = "2021"   # pakai 2021 agar kompatibel dengan Cargo stable kamu
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+warp = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
+dotenv = "0.15"
+askama = "0.12"
+askama_warp = "0.12"
+uuid = { version = "1.0", features = ["v4"] }
+urlencoding = "2.1"
+sqlx = { version = "0.7", features = [
+  "runtime-tokio-rustls",
+  "mysql",
+  "macros",
+  "chrono",
+  "json",
+  "bigdecimal"   # << penting untuk kolom DECIMAL
+] }
+
+bigdecimal = { version = "0.3", features = ["serde"] }

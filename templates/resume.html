@@ -1,0 +1,78 @@
+<!-- templates/resume.html -->
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit Resume</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.45;
+        }
+        h1 {
+            font-size: 22px;
+            margin: 0 0 12px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06);
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: #2563eb;
+            color: #fff;
+            text-decoration: none;
+        }
+        textarea {
+            width: 100%;
+            min-height: 260px;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-family: inherit;
+        }
+        button {
+            padding: 8px 12px;
+            border: 0;
+            border-radius: 10px;
+            background: #111827;
+            color: #fff;
+            cursor: pointer;
+        }
+        nav {
+            margin-bottom: 10px;
+        }
+        nav a {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a> | 
+        <a href="/list">Lihat Job</a> | 
+        <a href="/resume">Resume</a>
+    </nav>
+    <h1>Edit Resume</h1>
+    
+    <div class="card">
+        <form method="post" action="/resume_save">
+            <input type="hidden" name="id" value="{{ id }}">
+            <p><strong>Resume ID:</strong> {{ id }}</p>
+            <p><small>Gunakan ID=1 sebagai default untuk analisa.</small></p>
+            <textarea name="description" rows="20">{{ resume.as_deref().unwrap_or("") }}</textarea>
+            <div style="margin-top:10px">
+                <button type="submit">Simpan</button> 
+                <a class="btn" href="/list">Kembali ke Daftar Job</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
