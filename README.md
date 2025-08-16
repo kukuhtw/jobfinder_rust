@@ -280,10 +280,10 @@ static/
 
 **Programmer**
 Kukuh Tripamungkas Wicaksono (Kukuh TW)
-📧 **[kukuh.tw@gmail.com](mailto:kukuh.tw@gmail.com)**
-📱 **[https://wa.me/628129893706](https://wa.me/628129893706)**
-X/Twitter: **@kukuhtw** · IG: **@kukuhtw**
-FB: **facebook.com/kukuhtw** · LinkedIn: **id.linkedin.com/in/kukuhtw**
+📧 [kukuh.tw@gmail.com](mailto:kukuh.tw@gmail.com)
+📱 [https://wa.me/628129893706](https://wa.me/628129893706)
+X/Twitter: [@kukuhtw](https://x.com/kukuhtw) · IG: [@kukuhtw](https://instagram.com/kukuhtw)
+FB: [facebook.com/kukuhtw](https://www.facebook.com/kukuhtw) · LinkedIn: [id.linkedin.com/in/kukuhtw](https://id.linkedin.com/in/kukuhtw)
 
 ---
 
