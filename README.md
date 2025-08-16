@@ -3,6 +3,30 @@
 A fast job search aggregator built with **Warp (HTTP)**, **Tokio (async)**, **SQLx (MySQL)**, **Askama (templates)**, and **Reqwest**.
 Fetch jobs from **RapidAPI JSearch**, persist them to **MySQL**, render **mobile-first UI (Bootstrap)**, and (optionally) add **AI analysis & cover-letter generation**.
 
+## Benefits (Manfaat)
+
+### For Job Seekers
+
+* **Find remote full-time faster** — filter dan paginasi langsung ke sumber (RapidAPI JSearch) untuk menghemat waktu riset.
+* **AI Match & Gap Insights (opsional)** — ringkasan deskripsi kerja, highlight skill yang cocok & kekurangan yang perlu ditutup.
+* **Instant cover letters** — surat lamaran otomatis yang disesuaikan dengan role, perusahaan, dan tone pilihan.
+* **Consistent, mobile-first UI** — daftar & detail lowongan nyaman dibaca di smartphone.
+* **Dedup & persistence** — lowongan disimpan di MySQL (berbasis `api_job_id`) sehingga mudah dilacak kembali tanpa data ganda.
+* **Resume-ready workflow** — simpan/update resume lalu generate cover letter berbasis resume tersebut.
+* **Time-to-apply turun** — dari “lihat lowongan” ke “kirim surat lamaran” dalam beberapa klik.
+
+### For Developers / Teams
+
+* **Production-friendly stack** — Warp + Tokio (async), SQLx (MySQL), Askama (SSR), Reqwest (rustls) = cepat, aman, tanpa OpenSSL.
+* **Clear separation of concerns** — `api_client`, `database`, `handlers`, `models`, `openai_client` memudahkan perawatan & scaling.
+* **Config via `.env`** — pasang `DATABASE_URL`, `RAPIDAPI_KEY`, dan (opsional) `OPENAI_API_KEY` untuk AI.
+* **Scalable pagination** — kontrol `page` dan `num_pages` saat pengambilan dari API untuk batching terukur dan hemat kuota.
+* **Indexing-ready** — mudah menambah indeks (judul/perusahaan/lokasi) agar query listing & filter tetap kencang.
+* **Extensible** — gampang menambah filter (gaji, senioritas), saved search, notifikasi, atau export DOCX/PDF.
+
+[Demo Video](https://youtu.be/NKZABTIH44s) • *Tagline:* **Remote Full-Time. Smart Match. Instant Cover Letters.**
+
+
 https://youtu.be/NKZABTIH44s Demo Video
 ---
 
