@@ -84,6 +84,8 @@ cd jobfinder_rust
 CREATE DATABASE job_finder CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
+CHECK file database.sql
+
 ### 4) Tables (example schema)
 
 > Adjust as needed. Add/rename columns to match your `models` and handlers.
