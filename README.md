@@ -3,6 +3,11 @@
 A fast job search aggregator built with **Warp (HTTP)**, **Tokio (async)**, **SQLx (MySQL)**, **Askama (templates)**, and **Reqwest**.
 Fetch jobs from **RapidAPI JSearch**, persist them to **MySQL**, render **mobile-first UI (Bootstrap)**, and (optionally) add **AI analysis & cover-letter generation**.
 
+UPDATED: September 2, 2025 — Added LinkedIn Job Source
+📺 Watch here: https://www.youtube.com/watch?v=E6HY621XsSA
+
+
+
 ## Benefits (Manfaat)
 
 ### For Job Seekers
