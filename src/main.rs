@@ -63,10 +63,13 @@ mod database;
 mod api_client;
 mod openai_client;
 mod handlers;
+mod linkedin_client; // ⬅️ tambahkan
 
-use warp::Filter;
+
 use std::env;
 use dotenv::dotenv;
+use warp::Filter; // ← tambahkan kembali
+
 
 #[tokio::main]
 async fn main() {
@@ -77,9 +80,22 @@ async fn main() {
     let openai_key = env::var("OPENAI_API_KEY").unwrap_or_default();
     
     let db = database::Database::new(&database_url).await.expect("Failed to connect to database");
-    let api_client = api_client::JobApiClient::new(rapidapi_key, "jsearch.p.rapidapi.com".to_string());
+    let api_client = api_client::JobApiClient::new(rapidapi_key.clone(), "jsearch.p.rapidapi.com".to_string());
+
+
     let openai_client = openai_client::OpenAIClient::new(openai_key);
-    
+    let li_client = linkedin_client::LinkedInApiClient::new(rapidapi_key.clone());
+
+let fetch_li = warp::post()
+    .and(warp::path("fetch_li"))
+    .and(warp::body::form())
+    .and(with_db(db.clone()))
+    .and(with_li_client(li_client.clone()))
+    .and_then(|params, db, li_client| async move {
+        handlers::fetch_linkedin_handler(params, db, li_client).await
+    });
+
+
     // Routes
     let index = warp::get()
         .and(warp::path::end())
@@ -107,14 +123,15 @@ async fn main() {
 
 
     
-    let view = warp::get()
-        .and(warp::path("view"))
-        .and(warp::path::param::<String>())
-        .and(warp::path::end())
-        .and(with_db(db.clone()))
-        .and_then(|job_id, db| async move {
-            handlers::view_handler(job_id, db).await
-        });
+   let view = warp::get()
+    .and(warp::path("view"))
+    .and(warp::path::param::<String>())
+    .and(warp::path::end())
+    .and(with_db(db.clone()))
+    .and(with_li_client(li_client.clone())) // ⬅️ inject LinkedIn client
+    .and_then(|job_id, db, li_client| async move {
+        handlers::view_handler(job_id, db, li_client).await
+    });
     
     let analyze = warp::post()
         .and(warp::path("analyze"))
@@ -165,7 +182,8 @@ async fn main() {
         .or(resume)
         .or(resume_save)
         .or(cover_generate)
-        .or(static_files);
+        .or(static_files)
+        .or(fetch_li);   // ⬅️ baru
     
     println!("Server started at http://localhost:3030");
     warp::serve(routes)
@@ -182,5 +200,11 @@ fn with_api_client(client: api_client::JobApiClient) -> impl Filter<Extract = (a
 }
 
 fn with_openai_client(client: openai_client::OpenAIClient) -> impl Filter<Extract = (openai_client::OpenAIClient,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || client.clone())
+}
+
+
+fn with_li_client(client: linkedin_client::LinkedInApiClient)
+    -> impl Filter<Extract = (linkedin_client::LinkedInApiClient,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || client.clone())
 }

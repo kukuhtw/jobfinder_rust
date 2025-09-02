@@ -30,6 +30,152 @@
       <h1 class="h2 mb-1">{{ title }}</h1>
       <p class="text-muted mb-4">{{ subtitle }}</p>
 
+<div class="card shadow-sm mt-4">
+  <div class="card-body p-4">
+    <h2 class="h5 mb-3">Fetch dari LinkedIn (jobs-api14/v2)</h2>
+    <form method="post" action="/fetch_li" class="row g-3">
+
+      <!-- Query & Location -->
+      <div class="col-12 col-md-6">
+        <label class="form-label">Query (kata kunci)</label>
+        <input class="form-control" type="text" name="query" value="kotlin" placeholder="contoh: java, kotlin, rust">
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label">Location</label>
+        <input class="form-control" type="text" name="location" value="Worldwide" placeholder="Worldwide, United States, Singapore, ...">
+      </div>
+
+      <!-- Experience Levels (API valid: intern, entry, associate, midSenior, director) -->
+      <div class="col-12">
+        <label class="form-label d-block">Experience Levels</label>
+        <div class="d-flex flex-wrap gap-3">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="experience_levels" id="exp_any" value="" checked>
+            <label class="form-check-label" for="exp_any">Any</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="experience_levels" id="exp_intern" value="intern">
+            <label class="form-check-label" for="exp_intern">intern</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="experience_levels" id="exp_entry" value="entry">
+            <label class="form-check-label" for="exp_entry">entry</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="experience_levels" id="exp_associate" value="associate">
+            <label class="form-check-label" for="exp_associate">associate</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="experience_levels" id="exp_midSenior" value="midSenior">
+            <label class="form-check-label" for="exp_midSenior">midSenior</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="experience_levels" id="exp_director" value="director">
+            <label class="form-check-label" for="exp_director">director</label>
+          </div>
+        </div>
+        <div class="form-text">
+          Nilai yang didukung endpoint ini: <code>intern</code>, <code>entry</code>, <code>associate</code>, <code>midSenior</code>, <code>director</code>.
+        </div>
+      </div>
+
+      <!-- Workplace Types (remote, hybrid, onSite) -->
+      <div class="col-12">
+        <label class="form-label d-block">Workplace Types</label>
+        <div class="d-flex flex-wrap gap-3">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="workplace_types" id="wp_any" value="" checked>
+            <label class="form-check-label" for="wp_any">Any</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="workplace_types" id="wp_remote" value="remote">
+            <label class="form-check-label" for="wp_remote">remote</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="workplace_types" id="wp_hybrid" value="hybrid">
+            <label class="form-check-label" for="wp_hybrid">hybrid</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="workplace_types" id="wp_onSite" value="onSite">
+            <label class="form-check-label" for="wp_onSite">onSite</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Employment Types (contractor, fulltime, parttime, intern, temporary) -->
+      <div class="col-12">
+        <label class="form-label d-block">Employment Types</label>
+        <div class="d-flex flex-wrap gap-3">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="employment_types" id="emp_any" value="" checked>
+            <label class="form-check-label" for="emp_any">Any</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="employment_types" id="emp_contractor" value="contractor">
+            <label class="form-check-label" for="emp_contractor">contractor</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="employment_types" id="emp_fulltime" value="fulltime">
+            <label class="form-check-label" for="emp_fulltime">fulltime</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="employment_types" id="emp_parttime" value="parttime">
+            <label class="form-check-label" for="emp_parttime">parttime</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="employment_types" id="emp_intern" value="intern">
+            <label class="form-check-label" for="emp_intern">intern</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="employment_types" id="emp_temporary" value="temporary">
+            <label class="form-check-label" for="emp_temporary">temporary</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Date Posted (any, day, week, month) -->
+      <div class="col-12">
+        <label class="form-label d-block">Date Posted</label>
+        <div class="d-flex flex-wrap gap-3">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="date_posted" id="dp_any" value="any">
+            <label class="form-check-label" for="dp_any">any</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="date_posted" id="dp_day" value="day">
+            <label class="form-check-label" for="dp_day">day</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="date_posted" id="dp_week" value="week">
+            <label class="form-check-label" for="dp_week">week</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="date_posted" id="dp_month" value="month" checked>
+            <label class="form-check-label" for="dp_month">month</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paging token -->
+      <div class="col-12 col-md-6">
+        <label class="form-label">Next Token (paging)</label>
+        <input class="form-control" type="text" name="next_token" placeholder="isi dari meta.nextToken jika mau lanjut halaman berikutnya">
+      </div>
+
+      <div class="col-12">
+        <button class="btn btn-success" type="submit">Fetch LinkedIn</button>
+      </div>
+    </form>
+
+    <div class="mt-2 small text-muted">
+      Menggunakan RapidAPI host <code>jobs-api14.p.rapidapi.com</code> — endpoint <code>/v2/linkedin/search</code> + <code>/v2/linkedin/get</code>.
+    </div>
+  </div>
+</div>
+
+
+
       {# === FORM INI MEMANGGIL RAPIDAPI === #}
       <form method="post" action="/fetch" class="row g-3">
         <div class="col-12">

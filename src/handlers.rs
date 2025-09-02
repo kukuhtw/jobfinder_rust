@@ -1,11 +1,21 @@
 // src/handlers.rs
 use askama::Template;
-use warp::{http::StatusCode, Rejection, Reply}; // <- penting
+use warp::{http::StatusCode, Rejection, Reply};
 use warp::reply::Response;
 use warp::hyper::Body;
 use warp::http;
+use crate::linkedin_client;
+
 
 use crate::{api_client, database, openai_client};
+
+// ==================== Allowlists untuk filter LinkedIn ====================
+const ALLOWED_EXPERIENCE: &[&str] = &[
+    "intern","entry","associate","midSenior","director","executive","notApplicable"
+];
+const ALLOWED_WORKPLACE: &[&str] = &["remote","hybrid","onSite"];
+const ALLOWED_EMPLOYMENT: &[&str] = &["contractor","fulltime","parttime","intern","temporary"];
+const ALLOWED_DATE_POSTED: &[&str] = &["any","day","week","month"];
 
 // ==================== Konstanta Negara ====================
 const COUNTRIES: &[(&str, &str)] = &[
@@ -53,8 +63,8 @@ pub struct PageLink {
 #[derive(Debug, Clone)]
 pub struct JobRow {
     pub job: crate::models::Job,
-    pub preview: String, // ringkasan 100 kata
-    pub has_analysis: bool, // 👈 add this
+    pub preview: String,      // ringkasan 100 kata
+    pub has_analysis: bool,   // ada/tidak analisis
 }
 
 // ==================== Templates ====================
@@ -68,12 +78,11 @@ pub struct IndexTemplate<'a> {
     pub date_posted_opts: Vec<(&'a str, bool)>,   // (dp, selected)
 }
 
-
 #[derive(Template)]
 #[template(path = "jobs.html")]
 pub struct JobsTemplate {
     pub query: String,
-    pub rows: Vec<JobRow>,           // ⬅️ ganti dari Vec<Job>
+    pub rows: Vec<JobRow>,
     pub current_page: usize,
     pub per_page: usize,
     pub total_jobs: usize,
@@ -95,19 +104,55 @@ pub struct ResumeTemplate {
     pub resume: Option<String>,
 }
 
+// ==================== Helpers ====================
+
+fn none_if_empty(s: Option<String>) -> Option<String> {
+    s.and_then(|x| {
+        let t = x.trim().to_string();
+        if t.is_empty() { None } else { Some(t) }
+    })
+}
+
+/// Bersihkan string list dipisah ';' (hapus spasi, kosong, duplikat).
+fn clean_sc_list(input: Option<String>) -> Option<String> {
+    let s = input?.trim().to_string();
+    if s.is_empty() { return None; }
+    let mut out: Vec<String> = s
+        .split(';')
+        .map(|t| t.trim())
+        .filter(|t| !t.is_empty())
+        .map(|t| t.to_string())
+        .collect();
+    out.dedup();
+    if out.is_empty() { None } else { Some(out.join(";")) }
+}
+
+/// Bersihkan + validasi terhadap allowlist (biar gak ada nilai ilegal).
+fn clean_sc_list_with_allowlist(input: Option<String>, allow: &[&str]) -> Option<String> {
+    use std::collections::HashSet;
+    let s = input?.trim().to_string();
+    if s.is_empty() { return None; }
+    let set: HashSet<&str> = allow.iter().copied().collect();
+    let mut out: Vec<String> = s
+        .split(';')
+        .map(|t| t.trim())
+        .filter(|t| !t.is_empty() && set.contains(*t))
+        .map(|t| t.to_string())
+        .collect();
+    out.dedup();
+    if out.is_empty() { None } else { Some(out.join(";")) }
+}
+
 // ==================== Handlers ====================
 
 pub async fn index_handler() -> Result<Response, Rejection> {
-    // Ambil SEMUA negara dari const COUNTRIES, tambahkan flag selected utk "ID"
     let countries: Vec<(&str, &str, bool)> =
         COUNTRIES.iter().map(|(c, n)| (*c, *n, *c == "ID")).collect();
 
-    // Bahasa + flag default "en"
     let languages_src: &[&str] = &["en", "id", "de", "fr", "nl", "ja", "ko"];
     let languages: Vec<(&str, bool)> =
         languages_src.iter().map(|l| (*l, *l == "en")).collect();
 
-    // Opsi tanggal + flag default "all"
     let dp_src: &[&str] = &["all", "today", "3days", "week", "month"];
     let date_posted_opts: Vec<(&str, bool)> =
         dp_src.iter().map(|dp| (*dp, *dp == "all")).collect();
@@ -124,8 +169,6 @@ pub async fn index_handler() -> Result<Response, Rejection> {
     Ok(warp::reply::html(html).into_response())
 }
 
-
-
 pub async fn fetch_handler(
     params: std::collections::HashMap<String, String>,
     db: database::Database,
@@ -136,13 +179,10 @@ pub async fn fetch_handler(
     let language    = params.get("language").cloned().unwrap_or_else(|| "en".into());
     let date_posted = params.get("date_posted").cloned().unwrap_or_else(|| "all".into());
 
-
-    // ⬇️ ambil dari form; default 1
     let page: i32 = params.get("page").and_then(|s| s.parse().ok()).unwrap_or(1).max(1);
     let num_pages: i32 = params.get("num_pages").and_then(|s| s.parse().ok()).unwrap_or(1).max(1);
 
-    // (&str, i32, i32, &str, &str, &str)
-    let results = match api.search(&query, 1, 1, &date_posted, &country, &language).await {
+    let results = match api.search(&query, page, num_pages, &date_posted, &country, &language).await {
         Ok(r) => r,
         Err(e) => {
             return Ok(
@@ -152,7 +192,6 @@ pub async fn fetch_handler(
         }
     };
 
-    // ⬇️ iterasi array di dalam `data`
     for job in &results.data {
         if let Err(e) = db.upsert_job(job).await {
             return Ok(
@@ -174,11 +213,7 @@ pub async fn fetch_handler(
         .body(Body::empty())
         .unwrap();
     Ok(resp)
-
 }
-
-
-
 
 pub async fn list_handler(
     query: Option<String>,
@@ -198,36 +233,28 @@ pub async fn list_handler(
         .await
         .map_err(|_| warp::reject())?;
 
-        // bikin preview 100 kata
-     
     let rows: Vec<JobRow> = jobs
-    .into_iter()
-    .map(|job| {
-       
-        let text = job.matching_analysis.clone();
-let mut iter = text.split_whitespace();
-let first_100: Vec<&str> = iter.by_ref().take(100).collect();
-let preview = if iter.next().is_some() {
-    format!("{} ...", first_100.join(" "))
-} else {
-    first_100.join(" ")
-};
+        .into_iter()
+        .map(|job| {
+            let text = job.matching_analysis.clone();
+            let mut iter = text.split_whitespace();
+            let first_100: Vec<&str> = iter.by_ref().take(100).collect();
+            let preview = if iter.next().is_some() {
+                format!("{} ...", first_100.join(" "))
+            } else {
+                first_100.join(" ")
+            };
 
+            let has_analysis = !job.matching_analysis.is_empty();
 
-        
-        let has_analysis = !job.matching_analysis.is_empty();
+            JobRow {
+                job,
+                preview,
+                has_analysis,
+            }
+        })
+        .collect();
 
-
-
-        JobRow {
-            job,
-            preview,
-            has_analysis,
-        }
-    })
-    .collect();
-
-    // bikin list PageLink agar template tidak perlu bandingkan &usize vs usize
     let start = current_page.saturating_sub(3).max(1);
     let end = (current_page + 3).min(total_pages.max(1));
     let pages: Vec<PageLink> = (start..=end)
@@ -235,14 +262,14 @@ let preview = if iter.next().is_some() {
         .collect();
 
     let page_ctx = JobsTemplate {
-    query: query.unwrap_or_default(),
-    rows,              // ⬅️ bukan "jobs"
-    current_page,
-    per_page: PER_PAGE,
-    total_jobs,
-    total_pages,
-    pages,
-};
+        query: query.unwrap_or_default(),
+        rows,
+        current_page,
+        per_page: PER_PAGE,
+        total_jobs,
+        total_pages,
+        pages,
+    };
 
     let html = page_ctx.render().unwrap_or_else(|e| format!("Template error: {e}"));
     Ok(warp::reply::html(html).into_response())
@@ -251,22 +278,73 @@ let preview = if iter.next().is_some() {
 pub async fn view_handler(
     job_id: String,
     db: database::Database,
+    li: linkedin_client::LinkedInApiClient, // <-- baru
 ) -> Result<Response, Rejection> {
-    let job = db.find_job(&job_id).await;
+    use serde_json::json;
+
+    // helper kecil
+    fn is_blank(opt: Option<&String>) -> bool {
+        opt.map(|s| s.trim().is_empty()).unwrap_or(true)
+    }
+
+    // 1) Ambil dari DB
+    let mut job_opt = db.find_job(&job_id).await.map_err(|_| warp::reject())?;
+
+    // 2) Jika job ada, prefix "li_" dan description kosong -> lazy enrich
+    if let Some(job) = &job_opt {
+        let is_linkedin = job.job_id.starts_with("li_");
+        let desc_kosong = is_blank(job.job_description.as_ref());
+        if is_linkedin && desc_kosong {
+            // strip prefix: "li_4293585810" -> "4293585810"
+            let li_id = job.job_id.strip_prefix("li_").unwrap_or(&job.job_id).to_string();
+
+            match li.get_job(&li_id).await {
+                Ok(v) => {
+                    // API bisa return {"data": {...}} atau langsung {...}
+                    let detail_obj = v.get("data").cloned().unwrap_or(v);
+
+                    // upsert ke DB dengan mapper kamu
+                    if let Err(e) = db.upsert_job_from_linkedin(&detail_obj).await {
+                        eprintln!("upsert_job_from_linkedin error: {e}");
+                    } else {
+                        // optional: tambahkan apply option LinkedIn bila belum ada
+                        let link = detail_obj
+                            .get("linkedinUrl")
+                            .and_then(|x| x.as_str())
+                            .map(|s| s.to_string());
+                        if let Err(e) = db.insert_apply_option_if_new(&job_id, "LinkedIn", link, None).await {
+                            eprintln!("insert_apply_option_if_new error: {e}");
+                        }
+                    }
+
+                    // refetch dari DB agar dapat description terbaru
+                    job_opt = db.find_job(&job_id).await.map_err(|_| warp::reject())?;
+                }
+                Err(e) => {
+                    eprintln!("LinkedIn get_job({li_id}) error: {e}");
+                    // biarkan lanjut render tanpa description
+                }
+            }
+        }
+    }
+
+    // 3) Render seperti biasa
+    // 3) Render seperti biasa
     let opts = db.get_apply_options(&job_id).await;
 
-    match (job, opts) {
-        (Ok(Some(job)), Ok(apply_options)) => {
+    match (job_opt, opts) {
+        (Some(job), Ok(apply_options)) => {
             let page = JobTemplate { job, apply_options };
             let html = page.render().unwrap_or_else(|e| format!("Template error: {e}"));
             Ok(warp::reply::html(html).into_response())
         }
-        (Ok(None), _) => Ok(warp::reply::with_status("Job not found", StatusCode::NOT_FOUND).into_response()),
-        (Err(e), _) | (_, Err(e)) => Ok(
+        (None, _) => Ok(warp::reply::with_status("Job not found", StatusCode::NOT_FOUND).into_response()),
+        (_, Err(e)) => Ok(
             warp::reply::with_status(format!("DB error: {e}"), StatusCode::INTERNAL_SERVER_ERROR)
                 .into_response()
         ),
     }
+
 }
 
 pub async fn analyze_handler(
@@ -365,6 +443,108 @@ pub async fn resume_save_handler(
                 .into_response()
         ),
     }
+}
+
+/// Fetch dari LinkedIn (jobs-api14/v2)
+/// Versi ini melakukan enrichment langsung via /get.
+/// (Jika ingin hemat kuota, simpan hasil search saja dan enrich saat /view)
+pub async fn fetch_linkedin_handler(
+    params: std::collections::HashMap<String, String>,
+    db: database::Database,
+    li: linkedin_client::LinkedInApiClient,
+) -> Result<Response, Rejection> {
+    // Ambil & bersihkan input
+    let query            = params.get("query").cloned().unwrap_or_else(|| "kotlin".into());
+
+    let experience_lvls  = clean_sc_list_with_allowlist(params.get("experience_levels").cloned(), ALLOWED_EXPERIENCE);
+    let workplace_types  = clean_sc_list_with_allowlist(params.get("workplace_types").cloned(),  ALLOWED_WORKPLACE);
+    let employment_types = clean_sc_list_with_allowlist(params.get("employment_types").cloned(), ALLOWED_EMPLOYMENT);
+
+    let location         = none_if_empty(params.get("location").cloned()).or_else(|| Some("Worldwide".into()));
+
+    let mut date_posted  = none_if_empty(params.get("date_posted").cloned()).or_else(|| Some("month".into()));
+    if let Some(dp) = &date_posted {
+        if !ALLOWED_DATE_POSTED.contains(&dp.as_str()) {
+            date_posted = Some("month".into());
+        }
+    }
+
+    // penting: None jika kosong, agar tidak mengirim nextToken=
+    let next_token       = none_if_empty(params.get("next_token").cloned());
+
+    // Panggil /v2/linkedin/search
+    let search_json = match li.search(
+        &query,
+        experience_lvls.as_deref(),
+        workplace_types.as_deref(),
+        location.as_deref(),
+        date_posted.as_deref(),
+        employment_types.as_deref(),
+        next_token.as_deref(),
+    ).await {
+        Ok(v) => v,
+        Err(e) => {
+            return Ok(
+                warp::reply::with_status(format!("LinkedIn Search error: {e}"), StatusCode::BAD_GATEWAY)
+                    .into_response()
+            );
+        }
+    };
+
+    // data: [ { id, title, companyName, location, datePosted, ... } ]
+    let items = search_json.get("data").and_then(|d| d.as_array()).cloned().unwrap_or_default();
+    let mut saved = 0usize;
+
+    // Ambil nextToken untuk paging berikutnya (jika ada)
+    let next_token_new = search_json
+        .get("meta").and_then(|m| m.get("nextToken")).and_then(|v| v.as_str()).map(|s| s.to_string())
+        .or_else(|| search_json.get("nextToken").and_then(|v| v.as_str()).map(|s| s.to_string()));
+
+    // Enrichment per item: /v2/linkedin/get
+    for item in items {
+        let id_str = item.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        if id_str.is_empty() { continue; }
+
+        let detail = match li.get_job(&id_str).await {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("get_job({id_str}) error: {e}");
+                serde_json::json!({ "data": item })  // ⬅️ pakai path penuh
+            }
+        };
+
+        let detail_obj = detail.get("data").cloned().unwrap_or(detail.clone());
+
+        if let Err(e) = db.upsert_job_from_linkedin(&detail_obj).await {
+            eprintln!("upsert_job_from_linkedin error: {e}");
+        } else {
+            let job_id = format!("li_{}", id_str);
+            let link   = detail_obj.get("linkedinUrl").and_then(|v| v.as_str()).map(|s| s.to_string());
+            if let Err(e) = db.insert_apply_option_if_new(&job_id, "LinkedIn", link, None).await {
+                eprintln!("insert_apply_option_if_new error: {e}");
+            }
+            saved += 1;
+        }
+    }
+
+    // Redirect dengan notice (+ next_token jika ada)
+    let mut notice = format!("LinkedIn fetched: {saved} items");
+    let mut qs = format!("q={}", urlencoding::encode(&query));
+    if let Some(nt) = next_token_new {
+        notice.push_str(" (has next page)");
+        qs.push_str(&format!("&next_token={}", urlencoding::encode(&nt)));
+    }
+
+    let uri: http::Uri = format!("/list?{}&notice={}", qs, urlencoding::encode(&notice))
+        .parse()
+        .unwrap();
+
+    let resp = warp::http::Response::builder()
+        .status(StatusCode::SEE_OTHER)
+        .header("Location", uri.to_string())
+        .body(Body::empty())
+        .unwrap();
+    Ok(resp)
 }
 
 pub async fn cover_generate_handler(

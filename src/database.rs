@@ -2,7 +2,11 @@
 
 use crate::models::{ApplyOption, Job, Resume};
 use chrono::Utc;
+                       // ⬅️ add
 use sqlx::{MySql, Pool};
+use sqlx::mysql::MySqlQueryResult;              // ⬅️ add
+
+
 
 #[derive(Clone)]
 pub struct Database {
@@ -14,6 +18,77 @@ impl Database {
         let pool = Pool::connect(database_url).await?;
         Ok(Database { pool })
     }
+
+    // src/database.rs
+pub async fn upsert_job_from_linkedin(
+    &self,
+    detail_obj: &serde_json::Value,
+) -> sqlx::Result<()> {
+    // Ambil field dari JSON LinkedIn
+    let id           = detail_obj.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+    let job_id       = format!("li_{id}");
+    let title        = detail_obj.get("title").and_then(|v| v.as_str()).unwrap_or_default();
+    let company      = detail_obj.get("companyName").and_then(|v| v.as_str()).unwrap_or_default();
+    let location     = detail_obj.get("location").and_then(|v| v.as_str()).unwrap_or_default();
+
+    let _li_url = detail_obj
+    .get("linkedinUrl")
+    .and_then(|v| v.as_str());
+    // >>> INI YANG KAMU TANYAKAN:
+    let desc = detail_obj
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+
+    // (opsional) url apply
+    let li_url = detail_obj
+        .get("linkedinUrl")
+        .and_then(|v| v.as_str());
+
+    // Simpan ke DB (contoh MySQL + sqlx)
+    sqlx::query(r#"
+        INSERT INTO jobs (job_id, job_title, employer_name, job_location, job_description)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            job_title=VALUES(job_title),
+            employer_name=VALUES(employer_name),
+            job_location=VALUES(job_location),
+            job_description=VALUES(job_description)
+    "#)
+        .bind(&job_id)
+        .bind(title)
+        .bind(company)
+        .bind(location)
+        .bind(&desc)
+        .execute(&self.pool)
+        .await?;
+
+    Ok(())
+}
+
+    pub async fn insert_apply_option_if_new(
+        &self,
+        job_id: &str,
+        publisher: &str,
+        apply_link: Option<String>,
+        is_direct: Option<bool>,
+    ) -> Result<MySqlQueryResult, sqlx::Error> {
+        // Sederhana: insert saja (bisa ditambah unique index kalau mau)
+        sqlx::query!(
+            r#"
+            INSERT INTO job_apply_options (job_id, publisher, apply_link, is_direct, created_at)
+            VALUES (?, ?, ?, ?, NOW())
+            "#,
+            job_id,
+            publisher,
+            apply_link,
+            is_direct
+        )
+        .execute(&self.pool)
+        .await
+    }
+
 
     // Tambahan di impl Database
 pub async fn count_jobs(&self, query: Option<&str>) -> Result<i64, sqlx::Error> {
