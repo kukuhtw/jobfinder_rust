@@ -6,6 +6,10 @@ Fetch jobs from **RapidAPI JSearch**, persist them to **MySQL**, render **mobile
 UPDATED: September 2, 2025 — Added LinkedIn Job Source
 📺 Watch here: https://www.youtube.com/watch?v=E6HY621XsSA
 
+you need to subscribe this API
+https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/playground/
+https://rapidapi.com/Pat92/api/jobs-api14/playground/
+
 
 
 ## Benefits (Manfaat)
