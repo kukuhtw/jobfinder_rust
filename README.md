@@ -6,9 +6,15 @@ Fetch jobs from **RapidAPI JSearch**, persist them to **MySQL**, render **mobile
 UPDATED: September 2, 2025 — Added LinkedIn Job Source
 📺 Watch here: https://www.youtube.com/watch?v=E6HY621XsSA
 
-you need to subscribe this API
-https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/playground/
-https://rapidapi.com/Pat92/api/jobs-api14/playground/
+Before you run (IMPORTANT)
+
+You must subscribe to these RapidAPI endpoints to receive valid keys/quotas:
+
+JSearch: https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch/playground/
+
+LinkedIn jobs-api14: https://rapidapi.com/Pat92/api/jobs-api14/playground/
+
+After subscribing, copy your X-RapidAPI-Key and X-RapidAPI-Host values into .env
 
 
 
